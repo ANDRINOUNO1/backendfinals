@@ -6,7 +6,8 @@ module.exports = (sequelize) => {
         id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
         type: { type: DataTypes.STRING, allowNull: false, unique: true }, 
         description: { type: DataTypes.STRING },
-        basePrice: { type: DataTypes.DECIMAL(10, 2), allowNull: false }
+        basePrice: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+        reservationFeePercentage: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 10.00 }
     };
 
     const options = {
@@ -22,25 +23,29 @@ module.exports = (sequelize) => {
                 id: 1,
                 type: 'Classic',
                 description: 'Comfortable and affordable accommodation with essential amenities',
-                basePrice: 120.00
+                basePrice: 120.00,
+                reservationFeePercentage: 10.00
             },
             {
                 id: 2,
                 type: 'Deluxe',
                 description: 'Enhanced amenities and spacious rooms for a premium experience',
-                basePrice: 200.00
+                basePrice: 200.00,
+                reservationFeePercentage: 15.00
             },
             {
                 id: 3,
                 type: 'Prestige',
                 description: 'Luxury accommodations with premium services and amenities',
-                basePrice: 150.00
+                basePrice: 150.00,
+                reservationFeePercentage: 12.50
             },
             {
                 id: 4,
                 type: 'Luxury',
                 description: 'Ultimate luxury experience with top-tier amenities and services',
-                basePrice: 80.00
+                basePrice: 80.00,
+                reservationFeePercentage: 8.00
             }
         ];
         

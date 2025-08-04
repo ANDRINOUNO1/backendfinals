@@ -4,7 +4,6 @@ const router = express.Router();
 const db = require('../_helpers/db');
 const Room = db.Room;
 const RoomType = db.RoomType;
-const ReservationFee = db.ReservationFee; 
 
 // GET all rooms
 router.get('/', async (req, res) => {
@@ -12,7 +11,7 @@ router.get('/', async (req, res) => {
         const rooms = await Room.findAll({
             include: {
                 model: RoomType,
-                attributes: ['type', 'description', 'basePrice'] 
+                attributes: ['type', 'description', 'basePrice', 'reservationFeePercentage'] 
             },
             order: [['roomNumber', 'ASC']]
         });
@@ -33,11 +32,10 @@ router.get('/types', async (req, res) => {
     }
 });
 
-
 router.put('/types/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { rate, type, description } = req.body;
+        const { rate, type, description, reservationFeePercentage } = req.body;
         
         const roomType = await RoomType.findByPk(id);
         if (!roomType) {
@@ -48,6 +46,7 @@ router.put('/types/:id', async (req, res) => {
         if (rate !== undefined) updateData.basePrice = rate;
         if (type !== undefined) updateData.type = type;
         if (description !== undefined) updateData.description = description;
+        if (reservationFeePercentage !== undefined) updateData.reservationFeePercentage = reservationFeePercentage;
         
         await roomType.update(updateData);
         
@@ -57,7 +56,6 @@ router.put('/types/:id', async (req, res) => {
     }
 });
 
-
 router.get('/available/:type', async (req, res) => {
     try {
         const { type } = req.params;
@@ -66,7 +64,7 @@ router.get('/available/:type', async (req, res) => {
             include: {
                 model: RoomType,
                 where: { type: type },
-                attributes: ['type', 'description', 'basePrice']
+                attributes: ['type', 'description', 'basePrice', 'reservationFeePercentage']
             },
             where: { isAvailable: true },
             order: [['roomNumber', 'ASC']]
@@ -78,7 +76,6 @@ router.get('/available/:type', async (req, res) => {
     }
 });
 
-
 router.get('/stats', async (req, res) => {
     try {
         const totalRooms = await Room.count();
@@ -89,7 +86,7 @@ router.get('/stats', async (req, res) => {
         const roomTypeStats = await Room.findAll({
             include: {
                 model: RoomType,
-                attributes: ['type', 'basePrice']
+                attributes: ['type', 'basePrice', 'reservationFeePercentage']
             },
             attributes: ['isAvailable']
         });
@@ -102,7 +99,6 @@ router.get('/stats', async (req, res) => {
             roomTypes: {}
         };
         
-        
         roomTypeStats.forEach(room => {
             const type = room.RoomType.type;
             if (!stats.roomTypes[type]) {
@@ -110,7 +106,8 @@ router.get('/stats', async (req, res) => {
                     total: 0,
                     available: 0,
                     occupied: 0,
-                    price: room.RoomType.basePrice
+                    price: room.RoomType.basePrice,
+                    reservationFeePercentage: room.RoomType.reservationFeePercentage
                 };
             }
             stats.roomTypes[type].total++;
@@ -127,60 +124,13 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-// GET
-router.get('/reservation-fee', async (req, res) => {
-    try {
-        const reservationFee = await ReservationFee.findOne({
-            where: { isActive: true },
-            order: [['createdAt', 'DESC']]
-        });
-        
-        if (!reservationFee) {
-            return res.status(404).json({ message: 'No active reservation fee found' });
-        }
-        
-        res.json({ fee: parseFloat(reservationFee.fee) });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
-router.put('/reservation-fee', async (req, res) => {
-    try {
-        const { fee } = req.body;
-        
-        if (fee === undefined || fee < 0) {
-            return res.status(400).json({ message: 'Valid fee amount is required' });
-        }
-        
-        let reservationFee = await ReservationFee.findOne({
-            where: { isActive: true },
-            order: [['createdAt', 'DESC']]
-        });
-        
-        if (reservationFee) {
-            await reservationFee.update({ fee: fee });
-        } else {
-            reservationFee = await ReservationFee.create({
-                fee: fee,
-                description: 'Updated reservation fee',
-                isActive: true
-            });
-        }
-        
-        res.json({ fee: parseFloat(reservationFee.fee) });
-    } catch (err) {
-        res.status(400).json({ message: err.message });
-    }
-});
-
 // GET room by id
 router.get('/:id', async (req, res) => {
     try {
         const room = await Room.findByPk(req.params.id, {
             include: {
                 model: RoomType,
-                attributes: ['type', 'description', 'basePrice']
+                attributes: ['type', 'description', 'basePrice', 'reservationFeePercentage']
             }
         });
         if (!room) return res.status(404).json({ message: 'Room not found' });
@@ -270,22 +220,20 @@ router.post('/bulk-availability', async (req, res) => {
     }
 });
 
-
-
-
-const getCurrentReservationFee = async () => {
+// Helper function to calculate reservation fee based on room type
+const calculateReservationFee = async (roomTypeId) => {
     try {
-        const reservationFee = await ReservationFee.findOne({
-            where: { isActive: true },
-            order: [['createdAt', 'DESC']]
-        });
+        const roomType = await RoomType.findByPk(roomTypeId);
+        if (!roomType) {
+            throw new Error('Room type not found');
+        }
         
-        return reservationFee ? parseFloat(reservationFee.fee) : 500; 
+        const reservationFee = (parseFloat(roomType.basePrice) * parseFloat(roomType.reservationFeePercentage)) / 100;
+        return Math.round(reservationFee * 100) / 100; // Round to 2 decimal places
     } catch (err) {
-        console.error('Error getting reservation fee:', err);
-        return 500; 
+        console.error('Error calculating reservation fee:', err);
+        return 0;
     }
 };
 
-
-module.exports = { router, getCurrentReservationFee };
+module.exports = { router, calculateReservationFee };

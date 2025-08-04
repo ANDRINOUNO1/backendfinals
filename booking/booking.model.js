@@ -19,6 +19,7 @@ module.exports = (sequelize) => {
         // Payment fields
         paymentMode: { type: DataTypes.STRING },
         paymentMethod: { type: DataTypes.STRING },
+        mobileNumber: { type: DataTypes.STRING }, 
         amount: { type: DataTypes.FLOAT },
         cardNumber: { type: DataTypes.STRING },
         expiry: { type: DataTypes.STRING },

@@ -3,7 +3,7 @@
       "host": "localhost",
       "port": 3306,
       "user": "root",
-      "password": "root",
+      "password": "Administrator",
       "database": "hotelcapstone2"
     },
     "secret": "your_jwt_secret_key  ",
