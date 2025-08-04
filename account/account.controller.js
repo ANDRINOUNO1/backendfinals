@@ -16,18 +16,60 @@ router.post('/revoke-token', revokeToken);   // Public route
 
 // Test route to verify server is running latest code
 router.get('/test', (req, res) => {
-    res.send('Account controller is working!');
+    res.json({
+        message: 'Account controller is working!',
+        timestamp: new Date().toISOString(),
+        cors: {
+            origin: req.headers.origin,
+            method: req.method
+        }
+    });
+});
+
+// Test authentication endpoint
+router.post('/test-auth', (req, res) => {
+    res.json({
+        message: 'Authentication endpoint is accessible',
+        body: req.body,
+        headers: {
+            origin: req.headers.origin,
+            'content-type': req.headers['content-type']
+        },
+        timestamp: new Date().toISOString()
+    });
 });
 
 module.exports = router;
 
 function authenticate(req, res, next) {
+    // Check if database is available
+    if (!accountService || typeof accountService.authenticate !== 'function') {
+        return res.status(503).json({ 
+            message: 'Database service is not available',
+            error: 'Service temporarily unavailable'
+        });
+    }
+    
     accountService.authenticate({ ...req.body, ipAddress: req.ip }) // Pass ipAddress
         .then(account => res.json(account))
-        .catch(err => res.status(400).json({ message: err.toString() }));
+        .catch(err => {
+            console.error('Authentication error:', err);
+            res.status(400).json({ 
+                message: err.toString(),
+                error: 'Authentication failed'
+            });
+        });
 }
 
 function register(req, res, next) {
+    // Check if database is available
+    if (!accountService || typeof accountService.register !== 'function') {
+        return res.status(503).json({ 
+            message: 'Database service is not available',
+            error: 'Service temporarily unavailable'
+        });
+    }
+    
     accountService.register(req.body)
         .then(account => res.status(201).json(account))
         .catch(err => res.status(400).json({ message: err.toString() }));

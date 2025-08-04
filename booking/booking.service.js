@@ -2,10 +2,9 @@ const db = require('../_helpers/db');
 const Booking = db.Booking;
 const Room = db.Room; 
 const Archive = db.Archive;
+const RoomType = db.RoomType;
 const emailService = require('../_helpers/email.service');
 const { Op } = require('sequelize');
-
-const RESERVATION_FEE = 50; 
 
 module.exports = {
     createBooking,
@@ -35,6 +34,7 @@ function flattenBooking(nested) {
         paymentMode: nested.payment?.paymentMode || '',
         paymentMethod: nested.payment?.paymentMethod || '',
         amount: nested.payment?.amount || 0,
+        mobileNumber: nested.payment?.mobileNumber || '',
         cardNumber: nested.payment?.cardNumber || '',
         expiry: nested.payment?.expiry || '',
         cvv: nested.payment?.cvv || '',
@@ -71,6 +71,7 @@ function nestBooking(flat) {
             paymentMode: flat.paymentMode,
             paymentMethod: flat.paymentMethod,
             amount: flat.amount,
+            mobileNumber: flat.mobileNumber,
             cardNumber: flat.cardNumber,
             expiry: flat.expiry,
             cvv: flat.cvv
@@ -84,20 +85,31 @@ function nestBooking(flat) {
     };
 }
 
+// Helper function to calculate reservation fee based on room type
+async function calculateReservationFee(roomTypeId) {
+    try {
+        const roomType = await RoomType.findByPk(roomTypeId);
+        if (!roomType) {
+            throw new Error('Room type not found');
+        }
+        
+        const reservationFee = (parseFloat(roomType.basePrice) * parseFloat(roomType.reservationFeePercentage)) / 100;
+        return Math.round(reservationFee * 100) / 100; // Round to 2 decimal places
+    } catch (err) {
+        console.error('Error calculating reservation fee:', err);
+        return 0;
+    }
+}
+
 // --- Service functions ---
 async function createBooking(nestedBooking) {
     const flatBooking = flattenBooking(nestedBooking);
     
-    // Get current reservation fee from database
-    const ReservationFee = db.ReservationFee;
-    const reservationFee = await ReservationFee.findOne({
-        where: { isActive: true },
-        order: [['createdAt', 'DESC']]
-    });
-    const currentReservationFee = reservationFee ? parseFloat(reservationFee.fee) : RESERVATION_FEE;
+    // Calculate reservation fee based on room type
+    const reservationFee = await calculateReservationFee(nestedBooking.roomTypeId);
     
-    if (!flatBooking.amount || flatBooking.amount < currentReservationFee) {
-        throw new Error(`Payment amount must be at least ₱${currentReservationFee}.`);
+    if (!flatBooking.amount || flatBooking.amount < reservationFee) {
+        throw new Error(`Payment amount must be at least ₱${reservationFee} (${reservationFee}% of room price).`);
     }
 
     // Find available rooms
