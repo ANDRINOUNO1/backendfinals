@@ -10,7 +10,6 @@ module.exports = db;
 
 db.initialize = async function() {
     try {
-       
         const { host, port, user, password, database } = config.database;
         const connection = await mysql.createConnection({ host, port, user, password });
         await connection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\`;`);
@@ -22,7 +21,7 @@ db.initialize = async function() {
             logging: false
         });
 
-       
+        // define models
         db.Account = require('../account/account.model')(sequelize, DataTypes);
         db.RefreshToken = require('../account/refresh-token.model')(sequelize, DataTypes);
         db.Booking = require('../booking/booking.model')(sequelize, DataTypes);
@@ -37,18 +36,16 @@ db.initialize = async function() {
         db.Account.hasMany(db.Booking, { foreignKey: 'accountId'});
         db.Booking.belongsTo(db.Account, { foreignKey: 'accountId'});
 
-      
         db.Room.hasMany(db.Booking, { foreignKey: 'room_id' });
         db.Booking.belongsTo(db.Room, { foreignKey: 'room_id' });
 
         db.RoomType.hasMany(db.Room, { foreignKey: 'roomTypeId' });
         db.Room.belongsTo(db.RoomType, { foreignKey: 'roomTypeId' });
 
-
         await sequelize.sync({ force: false });
         console.log('Database synchronized successfully');
 
-
+        // Seed default data if needed
         const userCount = await db.Account.count();
         if (userCount === 0) {
             await db.Account.seedDefaults();

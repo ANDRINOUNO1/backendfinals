@@ -32,7 +32,6 @@ module.exports = (sequelize, DataTypes) => {
                 let floors = 1;
                 let roomsPerFloor = 1;
 
-                // Match the frontend room distribution
                 switch (roomType.type) {
                     case 'Classic': 
                         floors = 2;

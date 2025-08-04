@@ -102,7 +102,7 @@ async function createBooking(nestedBooking) {
     // Find available rooms
     const availableRooms = await Room.findAll({
         where: { roomTypeId: nestedBooking.roomTypeId, isAvailable: true },
-        order: [['roomNumber', 'ASC']], // Order by room number for consistent selection
+        order: [['roomNumber', 'ASC']], 
         limit: flatBooking.rooms || 1
     });
     
